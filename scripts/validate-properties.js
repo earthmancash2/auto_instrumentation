@@ -75,22 +75,33 @@ function extractProperties(content) {
   return properties;
 }
 
-function detectEventType(eventName, properties) {
+function detectEventType(eventName, properties, filePath) {
   if (eventName.startsWith('system_')) {
     return 'backend_system';
   }
 
-  // Frontend events have page/action properties
+  // Use file path as primary hint for detection
+  const isInFrontend = filePath.includes('/apps/') || filePath.includes('/pages/') || filePath.endsWith('.tsx');
+  const isInBackend = filePath.includes('/services/') || filePath.includes('/controllers/');
+
+  if (isInFrontend) {
+    return 'frontend';
+  }
+
+  if (isInBackend) {
+    return 'backend_request';
+  }
+
+  // Fallback to property-based detection
   if (properties.includes('page') && properties.includes('action')) {
     return 'frontend';
   }
 
-  // Backend request cycle events have client_context
   if (properties.includes('client_context')) {
     return 'backend_request';
   }
 
-  // Default to backend request (may need client_context added)
+  // Default to backend request
   return 'backend_request';
 }
 
@@ -131,9 +142,9 @@ function validateProperty(propName, value = null) {
   return errors;
 }
 
-function validateEventProperties(eventName, properties) {
+function validateEventProperties(eventName, properties, filePath) {
   const errors = [];
-  const eventType = detectEventType(eventName, properties);
+  const eventType = detectEventType(eventName, properties, filePath);
 
   // Check required properties
   const requiredProps = REQUIRED_PROPERTIES[eventType] || [];
@@ -208,7 +219,7 @@ function main() {
   results.forEach(({ file, events }) => {
     events.forEach(({ eventName, properties }) => {
       totalEvents++;
-      const errors = validateEventProperties(eventName, properties);
+      const errors = validateEventProperties(eventName, properties, file);
 
       if (errors.length > 0) {
         totalErrors += errors.length;
