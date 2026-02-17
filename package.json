@@ -12,7 +12,11 @@
     "docker:down": "docker compose down",
     "docker:build": "docker compose build",
     "db:migrate": "pnpm --filter database migrate",
-    "db:seed": "pnpm --filter database seed"
+    "db:seed": "pnpm --filter database seed",
+    "validate:events": "node scripts/validate-all.js",
+    "validate:event-names": "node scripts/validate-naming.js",
+    "validate:event-properties": "node scripts/validate-properties.js",
+    "validate:event-consistency": "node scripts/validate-consistency.js"
   },
   "devDependencies": {
     "turbo": "^1.13.4",
