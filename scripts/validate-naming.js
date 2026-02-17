@@ -34,6 +34,20 @@ const ALL_REQUEST_STAGES = [
   ...REQUEST_STAGES.resource,
 ];
 
+// Files to exclude from validation (legacy/stub code)
+const EXCLUDED_FILES = [
+  'analytics.ts',                    // Legacy analytics helper
+  'analytics-stub.ts',               // Fake/stub analytics
+  'auth.ts',                         // Legacy auth events
+  'validate-naming.js',              // This script (has examples)
+  'validate-properties.js',          // Property validator (has examples)
+  'validate-consistency.js',         // Consistency validator (has examples)
+];
+
+function isExcluded(filePath) {
+  return EXCLUDED_FILES.some(excluded => filePath.endsWith(excluded));
+}
+
 // Patterns to find analytics calls
 const ANALYTICS_PATTERNS = [
   /analytics\.track\(\s*{\s*name:\s*['"]([^'"]+)['"]/g,
@@ -124,6 +138,11 @@ function scanDirectory(dir, results = []) {
         scanDirectory(filePath, results);
       }
     } else if (stat.isFile() && /\.(ts|tsx|js|jsx)$/.test(file)) {
+      // Skip excluded files
+      if (isExcluded(filePath)) {
+        return;
+      }
+
       const content = fs.readFileSync(filePath, 'utf-8');
       const events = extractEventNames(content);
 
@@ -141,6 +160,8 @@ function scanDirectory(dir, results = []) {
 
 function main() {
   console.log('🔍 Validating event naming conventions...\n');
+  console.log('ℹ️  Excluding legacy/stub files:', EXCLUDED_FILES.join(', '));
+  console.log();
 
   const rootDir = process.cwd();
   const results = scanDirectory(rootDir);

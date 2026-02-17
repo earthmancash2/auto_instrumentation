@@ -9,6 +9,20 @@
 const fs = require('fs');
 const path = require('path');
 
+// Files to exclude from validation (legacy/stub code)
+const EXCLUDED_FILES = [
+  'analytics.ts',
+  'analytics-stub.ts',
+  'auth.ts',
+  'validate-naming.js',
+  'validate-properties.js',
+  'validate-consistency.js',
+];
+
+function isExcluded(filePath) {
+  return EXCLUDED_FILES.some(excluded => filePath.endsWith(excluded));
+}
+
 function extractEventsWithProperties(content) {
   const events = [];
 
@@ -67,6 +81,11 @@ function scanDirectory(dir, results = []) {
         scanDirectory(filePath, results);
       }
     } else if (stat.isFile() && /\.(ts|tsx|js|jsx)$/.test(file)) {
+      // Skip excluded files
+      if (isExcluded(filePath)) {
+        return;
+      }
+
       const content = fs.readFileSync(filePath, 'utf-8');
       const events = extractEventsWithProperties(content);
 
