@@ -19,22 +19,14 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
       - name: Validate Event Naming
-        run: npm run validate:event-names
+        run: node scripts/validate-naming.js
 
       - name: Validate Property Conventions
-        run: npm run validate:event-properties
+        run: node scripts/validate-properties.js
 
       - name: Validate Consistency
-        run: npm run validate:event-consistency
+        run: node scripts/validate-consistency.js
 
       - name: Comment on PR (if validation fails)
         if: failure() && github.event_name == 'pull_request'
