@@ -37,11 +37,11 @@ export default function SearchPage({
     const timeToHydrate = hydrationTimestamp - renderTime;
 
     // ========================================
-    // CLIENT EVENT: search_page_hydrated
+    // CLIENT EVENT: search_page_hydration
     // ========================================
     if (typeof window !== 'undefined' && (window as any).analytics) {
       (window as any).analytics.track({
-        name: 'search_page_hydrated',
+        name: 'search_page_hydration',
         properties: {
           // Correlation (links to backend events)
           request_id: requestId,
@@ -74,11 +74,11 @@ export default function SearchPage({
     e.preventDefault();
 
     // ========================================
-    // CLIENT EVENT: search_query_modified
+    // CLIENT EVENT: search_query_typed
     // ========================================
     if (typeof window !== 'undefined' && (window as any).analytics) {
       (window as any).analytics.track({
-        name: 'search_query_modified',
+        name: 'search_query_typed',
         properties: {
           request_id: requestId,
           search_id: searchId,

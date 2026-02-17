@@ -60,10 +60,10 @@ export const searchController = {
       const retryCount = getRetryCount(req.headers as Record<string, string>);
 
       // ========================================
-      // EVENT 1: search_api_request_received
+      // EVENT 1: search_request_received
       // ========================================
       analytics.track({
-        name: 'search_api_request_received',
+        name: 'search_request_received',
         properties: {
           // Correlation IDs
           request_id: requestId,
@@ -98,10 +98,10 @@ export const searchController = {
           const cachedResults = JSON.parse(cached);
 
           // ========================================
-          // EVENT 2a: search_api_request_completed (cache hit)
+          // EVENT 2a: search_request_completed (cache hit)
           // ========================================
           analytics.track({
-            name: 'search_api_request_completed',
+            name: 'search_request_completed',
             properties: {
               // Correlation
               request_id: requestId,
@@ -163,10 +163,10 @@ export const searchController = {
       dbQueryTime = Date.now() - dbQueryStartTime;
 
       // ========================================
-      // EVENT 2b: search_api_request_completed (fresh query)
+      // EVENT 2b: search_request_completed (fresh query)
       // ========================================
       analytics.track({
-        name: 'search_api_request_completed',
+        name: 'search_request_completed',
         properties: {
           // Correlation
           request_id: requestId,
@@ -221,10 +221,10 @@ export const searchController = {
       console.error('[Search Error]', error);
 
       // ========================================
-      // EVENT 3: search_api_request_failed
+      // EVENT 3: search_request_failed
       // ========================================
       analytics.track({
-        name: 'search_api_request_failed',
+        name: 'search_request_failed',
         properties: {
           request_id: requestId,
           search_query: req.query.q,

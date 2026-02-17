@@ -30,7 +30,7 @@ User searches for "laptop"
 ┌───────────────────────────────────────────────────────────────────┐
 │ 3. SEARCH SERVICE: /api/search?q=laptop                          │
 │                                                                    │
-│    EVENT 1: search_api_request_received                          │
+│    EVENT 1: search_request_received                          │
 │    ├─ request_id: abc-123                                        │
 │    ├─ search_id: def-456 (deterministic hash)                   │
 │    ├─ search_query: "laptop"                                     │
@@ -48,7 +48,7 @@ User searches for "laptop"
 ┌───────────────────────────────────────────────────────────────────┐
 │ 5. SEARCH SERVICE: Return results                                │
 │                                                                    │
-│    EVENT 2: search_api_request_completed                         │
+│    EVENT 2: search_request_completed                         │
 │    ├─ request_id: abc-123 (SAME)                                │
 │    ├─ search_id: def-456 (SAME)                                 │
 │    ├─ results_summary: { total: 47, returned: 20 }              │
@@ -79,7 +79,7 @@ User searches for "laptop"
 ┌───────────────────────────────────────────────────────────────────┐
 │ 8. CLIENT: React hydrates                                        │
 │                                                                    │
-│    EVENT 4: search_page_hydrated                                 │
+│    EVENT 4: search_page_hydration                                 │
 │    ├─ request_id: abc-123 (SAME)                                │
 │    ├─ search_id: def-456 (SAME)                                 │
 │    ├─ search_query: "laptop"                                     │
@@ -133,10 +133,10 @@ ORDER BY timestamp;
 
 **Output:**
 ```
-search_api_request_received    | abc-123 | laptop | null | 10:00:00.100
-search_api_request_completed   | abc-123 | laptop | 20   | 10:00:00.250
+search_request_received    | abc-123 | laptop | null | 10:00:00.100
+search_request_completed   | abc-123 | laptop | 20   | 10:00:00.250
 search_page_rendered_ssr       | abc-123 | laptop | 20   | 10:00:00.300
-search_page_hydrated           | abc-123 | laptop | 20   | 10:00:01.500
+search_page_hydration           | abc-123 | laptop | 20   | 10:00:01.500
 search_result_clicked          | abc-123 | laptop | --   | 10:00:03.200
 ```
 
@@ -160,9 +160,9 @@ services/search-service/src/controllers/search-controller.ts
 ```
 
 **Events Added:**
-- ✅ `search_api_request_received` - When API receives request
-- ✅ `search_api_request_completed` - When results returned (cache hit or fresh query)
-- ✅ `search_api_request_failed` - When search errors
+- ✅ `search_request_received` - When API receives request
+- ✅ `search_request_completed` - When results returned (cache hit or fresh query)
+- ✅ `search_request_failed` - When search errors
 
 **Key Features:**
 - Generates/extracts correlation IDs from headers
@@ -178,8 +178,8 @@ apps/marketplace-web/src/pages/search.tsx
 
 **Events Added:**
 - ✅ `search_page_rendered_ssr` - When Next.js renders HTML (server-side)
-- ✅ `search_page_hydrated` - When React hydrates (client-side)
-- ✅ `search_query_modified` - When user changes search query
+- ✅ `search_page_hydration` - When React hydrates (client-side)
+- ✅ `search_query_typed` - When user changes search query
 - ✅ `search_result_clicked` - When user clicks a result
 
 **Key Features:**
@@ -206,7 +206,7 @@ headers: { 'x-prefetch': 'true' }
 
 // Backend tags event
 analytics.track({
-  name: 'search_api_request_received',
+  name: 'search_request_received',
   properties: {
     is_prefetch: true,
     // Exclude from core metrics downstream
@@ -229,12 +229,12 @@ generateSearchId("laptop", { category: "Electronics" })
 -- Average time to hydration (UX metric)
 SELECT AVG((properties->>'time_to_hydrate_ms')::int)
 FROM analytics_events
-WHERE event_name = 'search_page_hydrated';
+WHERE event_name = 'search_page_hydration';
 
 -- Average database query time (backend metric)
 SELECT AVG((properties->>'database_time_ms')::int)
 FROM analytics_events
-WHERE event_name = 'search_api_request_completed';
+WHERE event_name = 'search_request_completed';
 ```
 
 ### 5. **Click-Through Rate**
@@ -243,7 +243,7 @@ WHERE event_name = 'search_api_request_completed';
 SELECT
   COUNT(DISTINCT CASE WHEN event_name = 'search_result_clicked'
                       THEN properties->>'request_id' END) * 100.0 /
-  COUNT(DISTINCT CASE WHEN event_name = 'search_api_request_completed'
+  COUNT(DISTINCT CASE WHEN event_name = 'search_request_completed'
                       THEN properties->>'request_id' END) AS ctr_percentage
 FROM analytics_events
 WHERE properties->>'is_prefetch' = 'false';
@@ -278,8 +278,8 @@ docker compose logs search-service | grep "Analytics"
 
 You should see:
 ```
-[Analytics] search_api_request_received { request_id: 'abc-123', search_query: 'shirt', ... }
-[Analytics] search_api_request_completed { request_id: 'abc-123', results_summary: {...}, ... }
+[Analytics] search_request_received { request_id: 'abc-123', search_query: 'shirt', ... }
+[Analytics] search_request_completed { request_id: 'abc-123', results_summary: {...}, ... }
 ```
 
 **SSR events (Next.js):**
@@ -295,7 +295,7 @@ You should see:
 **Client events:**
 - Open browser console
 - Navigate to search page
-- See: `search_page_hydrated`, `search_result_clicked` events
+- See: `search_page_hydration`, `search_result_clicked` events
 
 ### 5. Verify Correlation
 
@@ -328,7 +328,7 @@ SELECT
   PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY (properties->>'query_time_ms')::int) as p95,
   PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY (properties->>'query_time_ms')::int) as p99
 FROM analytics_events
-WHERE event_name = 'search_api_request_completed';
+WHERE event_name = 'search_request_completed';
 ```
 
 ### Top Searches
@@ -340,7 +340,7 @@ SELECT
   COUNT(DISTINCT properties->>'search_id') as unique_searches,
   COUNT(*) as total_requests
 FROM analytics_events
-WHERE event_name = 'search_api_request_completed'
+WHERE event_name = 'search_request_completed'
   AND properties->>'is_prefetch' = 'false'
 GROUP BY query
 ORDER BY unique_searches DESC
@@ -355,7 +355,7 @@ SELECT
   properties->>'search_query' as query,
   COUNT(*) as count
 FROM analytics_events
-WHERE event_name = 'search_api_request_completed'
+WHERE event_name = 'search_request_completed'
   AND (properties->'results_summary'->>'returned_count')::int = 0
 GROUP BY query
 ORDER BY count DESC;
