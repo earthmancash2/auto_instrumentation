@@ -1,0 +1,124 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: marketplace-postgres
+    environment:
+      POSTGRES_USER: marketplace
+      POSTGRES_PASSWORD: marketplace123
+      POSTGRES_DB: marketplace
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./packages/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marketplace"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: marketplace-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Core API Service
+  core-api:
+    build:
+      context: .
+      dockerfile: services/core-api/Dockerfile
+    container_name: marketplace-core-api
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: postgresql://marketplace:marketplace123@postgres:5432/marketplace
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: super-secret-jwt-key-change-in-production
+      SEARCH_SERVICE_URL: http://search-service:3002
+      PRICING_SERVICE_URL: http://pricing-service:3003
+      STRIPE_API_KEY: sk_test_fake_stripe_key
+      SENDGRID_API_KEY: SG.fake_sendgrid_key
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: sh -c "pnpm --filter database seed && pnpm --filter core-api dev"
+
+  # Search Service
+  search-service:
+    build:
+      context: .
+      dockerfile: services/search-service/Dockerfile
+    container_name: marketplace-search-service
+    environment:
+      NODE_ENV: development
+      PORT: 3002
+      DATABASE_URL: postgresql://marketplace:marketplace123@postgres:5432/marketplace
+      REDIS_URL: redis://redis:6379
+      CORE_API_URL: http://core-api:3001
+    ports:
+      - "3002:3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: pnpm --filter search-service dev
+
+  # Pricing Service
+  pricing-service:
+    build:
+      context: .
+      dockerfile: services/pricing-service/Dockerfile
+    container_name: marketplace-pricing-service
+    environment:
+      NODE_ENV: development
+      PORT: 3003
+      DATABASE_URL: postgresql://marketplace:marketplace123@postgres:5432/marketplace
+      REDIS_URL: redis://redis:6379
+      CORE_API_URL: http://core-api:3001
+    ports:
+      - "3003:3003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: pnpm --filter pricing-service dev
+
+  # Next.js Frontend
+  web:
+    build:
+      context: .
+      dockerfile: apps/marketplace-web/Dockerfile
+    container_name: marketplace-web
+    environment:
+      NODE_ENV: development
+      API_URL: http://core-api:3001
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NEXT_PUBLIC_ANALYTICS_ID: GA-FAKE-12345
+      NEXT_PUBLIC_INTERCOM_APP_ID: fake_intercom_app_id
+      USE_NEW_CHECKOUT: "false"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - core-api
+      - search-service
+      - pricing-service
+    command: sh -c "cd /app/apps/marketplace-web && pnpm dev"
+
+volumes:
+  postgres_data:

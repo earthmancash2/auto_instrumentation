@@ -1,0 +1,42 @@
+/**
+ * Legacy CSS file (old styles still referenced)
+ * TODO: Remove after migration to Tailwind
+ */
+
+.legacy-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.legacy-button {
+  padding: 10px 20px;
+  background-color: #0070f3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.legacy-button:hover {
+  background-color: #0051cc;
+}
+
+/* Old grid system (no longer used but not removed) */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  margin: -10px;
+}
+
+.col {
+  flex: 1;
+  padding: 10px;
+}
+
+/* Deprecated classes */
+.old-card {
+  border: 1px solid #ddd;
+  padding: 15px;
+  border-radius: 5px;
+}

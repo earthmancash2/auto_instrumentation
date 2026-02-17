@@ -1,0 +1,26 @@
+{
+  "name": "marketplace-auto-instrumentation",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Realistic marketplace application for testing auto-instrumentation tools",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "docker:up": "docker compose up",
+    "docker:down": "docker compose down",
+    "docker:build": "docker compose build",
+    "db:migrate": "pnpm --filter database migrate",
+    "db:seed": "pnpm --filter database seed"
+  },
+  "devDependencies": {
+    "turbo": "^1.13.4",
+    "typescript": "^5.4.5"
+  },
+  "packageManager": "pnpm@8.15.0",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

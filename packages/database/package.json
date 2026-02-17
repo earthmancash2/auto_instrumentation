@@ -1,0 +1,23 @@
+{
+  "name": "@marketplace/database",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "migrate": "node dist/scripts/migrate.js",
+    "seed": "node dist/scripts/seed.js",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@marketplace/shared": "workspace:*",
+    "pg": "^8.11.5",
+    "faker": "^5.5.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "@types/pg": "^8.11.5",
+    "@types/faker": "^5.5.8",
+    "typescript": "^5.4.5"
+  }
+}
