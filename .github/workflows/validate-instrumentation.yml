@@ -27,15 +27,3 @@ jobs:
 
       - name: Validate Consistency
         run: node scripts/validate-consistency.js
-
-      - name: Comment on PR (if validation fails)
-        if: failure() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '❌ Instrumentation validation failed. Please check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.\n\nCommon issues:\n- Event names not in snake_case or not using past tense\n- Properties missing type prefixes (is_, num_, total_)\n- Missing required properties for event type\n- Inconsistent property names across events\n\nSee [INSTRUMENTATION_STANDARDS.md](https://github.com/${{ github.repository }}/blob/main/INSTRUMENTATION_STANDARDS.md) for full requirements.'
-            })
