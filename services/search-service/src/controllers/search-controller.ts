@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { SearchService } from '../services/search-service';
 import { createClient } from 'redis';
+import { analytics } from '@marketplace/shared';
 
 const searchService = new SearchService();
 
@@ -14,6 +15,7 @@ redisClient.connect().catch(console.error);
 export const searchController = {
   // Search products
   async search(req: Request, res: Response) {
+    const startTime = Date.now();
     try {
       const { q, category, minPrice, maxPrice, page = '1', limit = '20' } = req.query;
 
@@ -28,7 +30,41 @@ export const searchController = {
         const cached = await redisClient.get(cacheKey);
         if (cached) {
           console.log('[Search Cache Hit]', cacheKey);
-          return res.json(JSON.parse(cached));
+          const cachedResults = JSON.parse(cached);
+
+          // Track search event (cache hit)
+          analytics.track({
+            name: 'search_performed',
+            properties: {
+              search_query: q,
+              filters: {
+                category: category || null,
+                min_price: minPrice ? parseInt(minPrice as string) * 100 : null,
+                max_price: maxPrice ? parseInt(maxPrice as string) * 100 : null,
+              },
+              pagination: {
+                page: parseInt(page as string),
+                limit: parseInt(limit as string),
+              },
+              results: {
+                total_matches: cachedResults.total,
+                returned_count: cachedResults.products.length,
+                has_more: cachedResults.hasMore,
+                product_ids: cachedResults.products.map((p: any) => p.id),
+                product_details: cachedResults.products.map((p: any) => ({
+                  id: p.id,
+                  title: p.title,
+                  price: p.price,
+                  category: p.category,
+                  rank: p.rank,
+                })),
+              },
+              cache_hit: true,
+              timestamp: new Date().toISOString(),
+            },
+          });
+
+          return res.json(cachedResults);
         }
       }
 
@@ -41,6 +77,39 @@ export const searchController = {
         limit: parseInt(limit as string),
       });
 
+      // Track search event with full product details
+      analytics.track({
+        name: 'search_performed',
+        properties: {
+          search_query: q,
+          filters: {
+            category: category || null,
+            min_price: minPrice ? parseInt(minPrice as string) * 100 : null,
+            max_price: maxPrice ? parseInt(maxPrice as string) * 100 : null,
+          },
+          pagination: {
+            page: parseInt(page as string),
+            limit: parseInt(limit as string),
+          },
+          results: {
+            total_matches: results.total,
+            returned_count: results.products.length,
+            has_more: results.hasMore,
+            product_ids: results.products.map((p: any) => p.id),
+            product_details: results.products.map((p: any) => ({
+              id: p.id,
+              title: p.title,
+              price: p.price,
+              category: p.category,
+              rank: p.rank,
+            })),
+          },
+          cache_hit: false,
+          response_time_ms: Date.now() - startTime,
+          timestamp: new Date().toISOString(),
+        },
+      });
+
       // Cache results for 5 minutes
       if (process.env.ENABLE_SEARCH_CACHE === 'true') {
         await redisClient.setEx(cacheKey, 300, JSON.stringify(results));
@@ -49,6 +118,18 @@ export const searchController = {
       res.json(results);
     } catch (error) {
       console.error('[Search Error]', error);
+
+      // Track search failure
+      analytics.track({
+        name: 'search_failed',
+        properties: {
+          search_query: req.query.q,
+          error_message: error instanceof Error ? error.message : 'Unknown error',
+          response_time_ms: Date.now() - startTime,
+          timestamp: new Date().toISOString(),
+        },
+      });
+
       res.status(500).json({ error: 'Search failed' });
     }
   },
