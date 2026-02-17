@@ -78,6 +78,7 @@ export const searchController = {
       });
 
       // Track search event with full product details
+      console.log('[DEBUG] About to track search event:', q, 'results:', results.products.length);
       analytics.track({
         name: 'search_performed',
         properties: {
