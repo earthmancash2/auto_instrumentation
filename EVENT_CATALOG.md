@@ -6,6 +6,19 @@ This document catalogs all analytics events in the marketplace application. All 
 
 ---
 
+## Event Naming Quick Reference
+
+| Category | Pattern | Example | When to Use |
+|----------|---------|---------|-------------|
+| User Action | `{object}_{user_action}` | `search_result_clicked` | User performs an action |
+| Request Cycle | `{object}_request_{stage}` | `search_request_received` | Backend request lifecycle |
+| Request Cycle (Frontend) | `{object}_{stage}` | `search_page_hydration` | Frontend rendering stages |
+| System/Background | `system_{object}_{stage}` | `system_inventory_synced` | Background jobs, cron tasks |
+
+See [INSTRUMENTATION_STANDARDS.md](./INSTRUMENTATION_STANDARDS.md) for complete naming rules.
+
+---
+
 ## Table of Contents
 
 - [Backend Events](#backend-events)
@@ -24,9 +37,13 @@ This document catalogs all analytics events in the marketplace application. All 
 
 ### Search Service
 
-#### search_api_request_received
+#### search_request_received
 
 **When**: Fires when the search service receives a search request
+
+**Event Category**: Request Cycle Event
+
+**Pattern**: `{object}_request_{stage}` where object=search, stage=received
 
 **Location**: `services/search-service/src/controllers/search-controller.ts:65`
 
@@ -67,7 +84,7 @@ This document catalogs all analytics events in the marketplace application. All 
 ```json
 {
   "timestamp": "2026-02-17T10:00:00.100Z",
-  "event_name": "search_api_request_received",
+  "event_name": "search_request_received",
   "schema_version": 1,
   "request_id": "abc-123",
   "search_id": "a3f2e9d1b4c8",
@@ -100,9 +117,13 @@ This document catalogs all analytics events in the marketplace application. All 
 
 ---
 
-#### search_api_request_completed
+#### search_request_completed
 
 **When**: Fires when search service returns results (cache hit or fresh query)
+
+**Event Category**: Request Cycle Event
+
+**Pattern**: `{object}_request_{stage}` where object=search, stage=completed
 
 **Location**: `services/search-service/src/controllers/search-controller.ts:103` (cache hit), `services/search-service/src/controllers/search-controller.ts:168` (fresh query)
 
@@ -113,7 +134,7 @@ This document catalogs all analytics events in the marketplace application. All 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | timestamp | string | ✅ | ISO 8601 timestamp when event occurred |
-| event_name | string | ✅ | Always "search_api_request_completed" |
+| event_name | string | ✅ | Always "search_request_completed" |
 | schema_version | number | ✅ | Event schema version (currently 1) |
 | request_id | string | ✅ | Unique request identifier (same as received event) |
 | search_id | string | ✅ | Deterministic hash of query + filters |
@@ -140,7 +161,7 @@ This document catalogs all analytics events in the marketplace application. All 
 ```json
 {
   "timestamp": "2026-02-17T10:00:00.250Z",
-  "event_name": "search_api_request_completed",
+  "event_name": "search_request_completed",
   "schema_version": 1,
   "request_id": "abc-123",
   "search_id": "a3f2e9d1b4c8",
@@ -180,9 +201,13 @@ This document catalogs all analytics events in the marketplace application. All 
 
 ---
 
-#### search_api_request_failed
+#### search_request_failed
 
 **When**: Fires when search service encounters an error
+
+**Event Category**: Request Cycle Event
+
+**Pattern**: `{object}_request_{stage}` where object=search, stage=failed
 
 **Location**: `services/search-service/src/controllers/search-controller.ts:226`
 
@@ -193,7 +218,7 @@ This document catalogs all analytics events in the marketplace application. All 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | timestamp | string | ✅ | ISO 8601 timestamp when error occurred |
-| event_name | string | ✅ | Always "search_api_request_failed" |
+| event_name | string | ✅ | Always "search_request_failed" |
 | schema_version | number | ✅ | Event schema version (currently 1) |
 | request_id | string | ✅ | Unique request identifier |
 | session_id | string | ✅ | User session identifier |
@@ -211,7 +236,7 @@ This document catalogs all analytics events in the marketplace application. All 
 ```json
 {
   "timestamp": "2026-02-17T10:00:00.500Z",
-  "event_name": "search_api_request_failed",
+  "event_name": "search_request_failed",
   "schema_version": 1,
   "request_id": "abc-123",
   "session_id": "session-789",
@@ -237,9 +262,13 @@ This document catalogs all analytics events in the marketplace application. All 
 
 ### Search Pages
 
-#### search_page_hydrated
+#### search_page_hydration
 
 **When**: Fires when React hydrates the SSR-rendered search page
+
+**Event Category**: Request Cycle Event (Frontend)
+
+**Pattern**: `{object}_{stage}` where object=search_page, stage=hydration
 
 **Location**: `apps/marketplace-web/src/pages/search.tsx:42`
 
@@ -250,7 +279,7 @@ This document catalogs all analytics events in the marketplace application. All 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | timestamp | string | ✅ | ISO 8601 timestamp when hydration completed |
-| event_name | string | ✅ | Always "search_page_hydrated" |
+| event_name | string | ✅ | Always "search_page_hydration" |
 | schema_version | number | ✅ | Event schema version (currently 1) |
 | request_id | string | ✅ | Request ID from SSR (inherited) |
 | search_id | string | ✅ | Search ID from SSR (inherited) |
@@ -280,7 +309,7 @@ This document catalogs all analytics events in the marketplace application. All 
 ```json
 {
   "timestamp": "2026-02-17T10:00:01.500Z",
-  "event_name": "search_page_hydrated",
+  "event_name": "search_page_hydration",
   "schema_version": 1,
   "request_id": "abc-123",
   "search_id": "a3f2e9d1b4c8",
@@ -311,6 +340,10 @@ This document catalogs all analytics events in the marketplace application. All 
 #### search_result_clicked
 
 **When**: Fires when user clicks a search result
+
+**Event Category**: User Action Event
+
+**Pattern**: `{object}_{user_action}` where object=search_result, action=clicked
 
 **Location**: `apps/marketplace-web/src/pages/search.tsx:101`
 
@@ -388,6 +421,10 @@ This document catalogs all analytics events in the marketplace application. All 
 
 **When**: Fires when background job syncs inventory from external source
 
+**Event Category**: System/Background Event
+
+**Pattern**: `system_{object}_{stage}` where object=inventory, stage=synced
+
 **Location**: `services/pricing-service/src/jobs/sync-inventory.ts` (not yet implemented)
 
 **Schema Version**: 1
@@ -432,9 +469,9 @@ This document catalogs all analytics events in the marketplace application. All 
 ```
 search_api_request_received
   ↓ (request_id: abc-123)
-search_api_request_completed
+search_request_completed
   ↓ (request_id: abc-123)
-search_page_hydrated
+search_page_hydration
   ↓ (request_id: abc-123, search_id: a3f2e9d1b4c8)
 search_result_clicked
 ```
@@ -464,7 +501,7 @@ ORDER BY timestamp;
 SELECT
   COUNT(DISTINCT CASE WHEN event_name = 'search_result_clicked'
                       THEN properties->>'request_id' END) * 100.0 /
-  COUNT(DISTINCT CASE WHEN event_name = 'search_api_request_completed'
+  COUNT(DISTINCT CASE WHEN event_name = 'search_request_completed'
                       THEN properties->>'request_id' END) AS ctr_percentage
 FROM analytics_events
 WHERE properties->>'is_prefetch' = 'false';

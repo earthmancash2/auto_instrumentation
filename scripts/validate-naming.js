@@ -9,16 +9,29 @@
 const fs = require('fs');
 const path = require('path');
 
-// Controlled vocabulary
-const CONTROLLED_VERBS = [
-  // User actions
-  'clicked', 'viewed', 'submitted', 'selected', 'typed', 'scrolled',
-  'expanded', 'collapsed', 'toggled',
-  // Backend actions
-  'received', 'completed', 'failed', 'started', 'created', 'updated',
-  'deleted', 'validated',
-  // System actions
+// User action verbs (for user action events only)
+const USER_ACTION_VERBS = [
+  'clicked', 'viewed', 'typed', 'submitted', 'selected',
+  'scrolled', 'expanded', 'collapsed', 'toggled',
+];
+
+// Request stages (for request cycle events)
+const REQUEST_STAGES = {
+  backend: ['received', 'started', 'completed', 'failed'],
+  frontend: ['rendered', 'hydration', 'interactive'],
+  resource: ['created', 'updated', 'deleted', 'validated'],
+};
+
+// System stages (for system_ events)
+const SYSTEM_STAGES = [
   'processed', 'synced', 'indexed', 'expired', 'scheduled',
+];
+
+// Flatten all request stages
+const ALL_REQUEST_STAGES = [
+  ...REQUEST_STAGES.backend,
+  ...REQUEST_STAGES.frontend,
+  ...REQUEST_STAGES.resource,
 ];
 
 // Patterns to find analytics calls
@@ -45,25 +58,54 @@ function extractEventNames(content) {
 function validateEventName(eventName) {
   const errors = [];
 
-  // Check if it's a system event
-  const isSystemEvent = eventName.startsWith('system_');
-
-  // Check format
-  const pattern = isSystemEvent
-    ? /^system_[a-z]+(_[a-z]+)*_([a-z]+)$/
-    : /^[a-z]+(_[a-z]+)*_([a-z]+)$/;
-
-  if (!pattern.test(eventName)) {
-    errors.push(`Event name "${eventName}" doesn't match required format: ${isSystemEvent ? 'system_{object}_{action}' : '{object}_{action}'}`);
-    return errors;  // Can't extract verb if format is wrong
+  // Check basic format (snake_case)
+  if (!/^[a-z]+(_[a-z]+)*$/.test(eventName)) {
+    errors.push(`Event name "${eventName}" must be in snake_case`);
+    return errors;
   }
 
-  // Extract and validate verb (last word)
   const parts = eventName.split('_');
-  const verb = parts[parts.length - 1];
+  const lastPart = parts[parts.length - 1];
 
-  if (!CONTROLLED_VERBS.includes(verb)) {
-    errors.push(`Event verb "${verb}" in "${eventName}" not in controlled vocabulary. Allowed: ${CONTROLLED_VERBS.join(', ')}`);
+  // Category 1: System events (system_{object}_{stage})
+  if (eventName.startsWith('system_')) {
+    if (parts.length < 3) {
+      errors.push(`System event "${eventName}" must follow pattern: system_{object}_{stage}`);
+      return errors;
+    }
+
+    if (!SYSTEM_STAGES.includes(lastPart)) {
+      errors.push(`System event "${eventName}" uses stage "${lastPart}" which is not in system stage list. Allowed: ${SYSTEM_STAGES.join(', ')}`);
+    }
+    return errors;
+  }
+
+  // Category 2: Request cycle events ({object}_request_{stage} or {object}_{stage})
+  const hasRequestInName = eventName.includes('_request_');
+  const isRequestStage = ALL_REQUEST_STAGES.includes(lastPart);
+
+  if (hasRequestInName) {
+    // Must be {object}_request_{stage} pattern
+    if (!isRequestStage) {
+      errors.push(`Request cycle event "${eventName}" uses stage "${lastPart}" which is not in request stage list. Allowed: ${ALL_REQUEST_STAGES.join(', ')}`);
+    }
+    return errors;
+  }
+
+  // Check if last part is a known request stage (for {object}_{stage} pattern)
+  if (isRequestStage) {
+    // This is a valid request cycle event using {object}_{stage} pattern
+    return errors;
+  }
+
+  // Category 3: User action events ({object}_{user_action})
+  // Last part must be a user action verb
+  if (!USER_ACTION_VERBS.includes(lastPart)) {
+    errors.push(
+      `Event "${eventName}" uses "${lastPart}" which is not in user action verb list. ` +
+      `Allowed user verbs: ${USER_ACTION_VERBS.join(', ')}. ` +
+      `If this is a request cycle event, use pattern: {object}_request_{stage} with stages: ${ALL_REQUEST_STAGES.join(', ')}`
+    );
   }
 
   return errors;

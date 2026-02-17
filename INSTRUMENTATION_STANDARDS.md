@@ -12,76 +12,167 @@
 
 ### Rules (REQUIRED)
 
-- **Format**: `{object}_{action}` in snake_case
-- **Tense**: Past tense only
-- **Vocabulary**: MUST use verbs from controlled list (see below)
+- **Format**: Depends on event category (see below)
+- **Case**: snake_case only
+- **Tense**: Past tense for user actions, stage names for lifecycle events
 
-### Controlled Verb List
+### Event Categories
 
-Events MUST use one of these approved verbs (past tense):
+Events fall into one of three categories, each with its own naming pattern:
 
-#### User Actions
-- `clicked` - User clicked/tapped an element
-- `viewed` - User viewed content (page, product, etc.)
-- `submitted` - User submitted a form
-- `selected` - User made a selection from options
-- `typed` - User entered text (search, input)
-- `scrolled` - User scrolled content
-- `expanded` - User expanded collapsible content
-- `collapsed` - User collapsed expanded content
-- `toggled` - User toggled a setting/switch
+#### 1. User Action Events
 
-#### Backend Actions
-- `received` - Server received a request
-- `completed` - Operation finished successfully
-- `failed` - Operation failed with error
-- `started` - Long-running operation initiated
-- `created` - New resource created
-- `updated` - Existing resource modified
-- `deleted` - Resource removed
-- `validated` - Data validation occurred
+**Pattern**: `{object}_{user_action}`
 
-#### System Actions (Non-Request Cycle)
-- `processed` - Background job/queue processing
-- `synced` - Data synchronization occurred
-- `indexed` - Search/cache index updated
-- `expired` - Cache/session expiration
-- `scheduled` - Future task scheduled
+**When**: User performs an action (click, view, type, submit, etc.)
 
-### Event Categories by Prefix
+**Verb Source**: MUST use verb from controlled user action list (see below)
 
-#### Request Cycle Events
-- **Format**: `{object}_{action}` (no special prefix)
-- **When**: Events occurring during user request cycles
-- **Requirements**: MUST include client context properties
-- **Examples**: `search_api_request_received`, `order_payment_completed`, `product_viewed`
+**Examples**:
+- `search_result_clicked` - User clicked a search result
+- `product_viewed` - User viewed a product page
+- `form_submitted` - User submitted a form
+- `search_query_typed` - User typed in search box
 
-#### System/Background Events
-- **Format**: `system_{object}_{action}` (prefix with `system_`)
-- **When**: Events occurring outside user request cycles (background jobs, cron tasks, system processes)
-- **Requirements**: NO client context, NO request_id
-- **Examples**: `system_inventory_synced`, `system_cache_expired`, `system_email_processed`
+#### 2. Request Cycle Events
+
+**Pattern**: `{object}_request_{stage}` or `{object}_{stage}`
+
+**When**: System lifecycle stages during request processing
+
+**Stage Source**: MUST use stage from request stage list (see below)
+
+**Examples**:
+- `search_request_received` - Backend received search request
+- `search_request_completed` - Backend completed search request
+- `search_page_rendered` - Server rendered search page (SSR)
+- `search_page_hydration` - Client hydrated search page
+
+#### 3. System/Background Events
+
+**Pattern**: `system_{object}_{stage}`
+
+**When**: Background jobs, cron tasks, system processes (not part of user request cycle)
+
+**Requirements**: NO client context, NO request_id
+
+**Examples**:
+- `system_inventory_synced` - Background job synced inventory
+- `system_cache_expired` - Cache expiration occurred
+- `system_email_processed` - Email queue processed message
+
+---
+
+### Controlled User Action Verbs
+
+User action events MUST use one of these verbs (past tense):
+
+| Verb | Description |
+|------|-------------|
+| `clicked` | User clicked/tapped an element |
+| `viewed` | User viewed content (page, product, etc.) |
+| `typed` | User entered text (search, input) |
+| `submitted` | User submitted a form |
+| `selected` | User made a selection from options |
+| `scrolled` | User scrolled content |
+| `expanded` | User expanded collapsible content |
+| `collapsed` | User collapsed expanded content |
+| `toggled` | User toggled a setting/switch |
+
+---
+
+### Request Stage List
+
+Request cycle events MUST use one of these stages:
+
+#### Backend Stages
+
+| Stage | Description |
+|-------|-------------|
+| `received` | Server received a request |
+| `started` | Long-running operation initiated |
+| `completed` | Operation finished successfully |
+| `failed` | Operation failed with error |
+
+#### Frontend Stages
+
+| Stage | Description |
+|-------|-------------|
+| `rendered` | Server-side rendering completed (SSR) |
+| `hydration` | Client-side framework hydration completed |
+| `interactive` | Page fully interactive |
+
+#### Resource Stages
+
+| Stage | Description |
+|-------|-------------|
+| `created` | New resource created |
+| `updated` | Existing resource modified |
+| `deleted` | Resource removed |
+| `validated` | Data validation occurred |
+
+#### System Stages (for system_ events)
+
+| Stage | Description |
+|-------|-------------|
+| `processed` | Background job/queue processing |
+| `synced` | Data synchronization occurred |
+| `indexed` | Search/cache index updated |
+| `expired` | Cache/session expiration |
+| `scheduled` | Future task scheduled |
+
+### Naming Decision Tree
+
+```
+Is this a user action?
+├─ YES → Use {object}_{user_action}
+│         Verb MUST be from controlled user action list
+│         Example: search_result_clicked
+│
+└─ NO → Is this part of a request cycle?
+    ├─ YES → Use {object}_request_{stage} or {object}_{stage}
+    │         Stage MUST be from request stage list
+    │         Example: search_request_received, search_page_rendered
+    │
+    └─ NO → Is this a background/system event?
+        └─ YES → Use system_{object}_{stage}
+                  Stage MUST be from system stage list
+                  Example: system_inventory_synced
+```
 
 ### Examples
 
 ✅ **Correct**:
 ```
-search_api_request_received
-search_result_clicked
-order_payment_completed
-product_cart_added
-system_inventory_synced
-system_cache_expired
+# User action events
+search_result_clicked           # User clicked result
+product_viewed                  # User viewed product
+form_submitted                  # User submitted form
+search_query_typed              # User typed in search
+
+# Request cycle events
+search_request_received         # Backend received request
+search_request_completed        # Backend completed request
+search_page_rendered            # SSR render completed
+search_page_hydration           # Client hydration completed
+order_request_failed            # Order processing failed
+
+# System/background events
+system_inventory_synced         # Background sync job
+system_cache_expired            # Cache expiration
+system_email_processed          # Email queue processing
 ```
 
 ❌ **Incorrect**:
 ```
-SearchAPIRequestReceived        # camelCase
-search_api_request_receive      # not past tense
-search-result-clicked           # kebab-case
+SearchResultClicked             # camelCase (use snake_case)
+search-result-clicked           # kebab-case (use snake_case)
 click_search_result             # action-first order
-search_updated                  # not from controlled list (use 'modified' or 'typed')
-inventory_synced                # missing system_ prefix for non-request event
+search_api_request_receive      # "receive" not past tense (use 'received')
+search_page_hydrated            # "hydrated" is not a stage (use 'hydration')
+search_updated                  # ambiguous - user action or request stage?
+inventory_synced                # missing system_ prefix (use 'system_inventory_synced')
+search_result_modified          # "modified" not in user action list (use 'typed' or 'updated')
 ```
 
 ---
